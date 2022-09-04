@@ -1,0 +1,70 @@
+###Firt Try 
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+##Create namespace postgres-helm
+kubectl create namespace postgres-helm
+kubectl apply -f postgres-pv.yaml -n postgres-helm
+kubectl apply -f postgres-pvc.yaml -n postgres-helm
+kubectl get pvc -n postgres-helm
+
+helm install postgres-helm-db bitnami/postgresql -n postgres-helm --set persistence.existingClaim=postgresql-pv-claim --set volumePermissions.enabled=true --set global.postgresql.servicePort=5432
+
+--export the password
+set POSTGRES_PASSWORD=$(kubectl get secret --namespace postgres-helm postgres-helm-db-postgresql -o jsonpath="{.data.postgres-password}") | base64 -d
+
+--get the password 
+(kubectl get secret --namespace postgres-helm postgres-helm-db-postgresql -o jsonpath="{.data.postgres-password}") | base64 -d
+hjSPbcw0aK
+
+--execute the postgres to check it is connecting
+kubectl exec -it postgres-helm-db-postgresql-0 -n postgres-helm --  psql -h localhost -U postgres -p 5432
+
+--deployment 
+kubectl create deployment postgres-helm-db -n postgres-helm --image docker.io/bitnami/postgresql
+
+--service creation
+kubectl expose deployment postgres-helm-db -n postgres-helm --port 5432
+
+--to port forward
+--get the pod details 
+kubectl get pods -n postgres-helm
+
+kubectl port-forward -n postgres-helm postgres-helm-db-postgresql-0 5432 ######Working fine
+
+--Use the pod name in port forwarding 
+kubectl port-forward -n postgres-helm svc/postgres-helm-db 5432:5432   ###Not accessible in pgadmin 
+
+
+
+##########################Not Required###################################
+kubectl run postgres-helm-db-postgresql-client1 -n postgres-helm --rm --tty -i --namespace default --image docker.io/bitnami/postgresql --env="ALLOW_EMPTY_PASSWORD=yes"
+
+
+###To set password overridding the image's 
+helm install postgres-helm-db bitnami/postgresql -n postgres-helm --set persistence.existingClaim=postgresql-pv-claim --set volumePermissions.enabled=true --set global.postgresql.postgresqlUsername=admin --set global.postgresql.postgresqlPassword=test123 --set postgresqlUsername=admin --set postgresqlPassword=test123 --set global.postgresql.postgresqlDatabase=postgresdb --set global.postgresql.servicePort=5432
+
+--UPGRADE (not required) 
+helm upgrade postgres-helm-db bitnami/postgresql --set postgresqlPassword=test123 --set replication.password=test123 --set service.type=NodePort --set-string service.nodePort=5432
+
+
+##########Helm Install postgres output during apply###########
+
+PostgreSQL can be accessed via port 5432 on the following DNS names from within your cluster:
+
+    postgres-helm-db-postgresql.postgres-helm.svc.cluster.local - Read/Write connection
+
+To get the password for "postgres" run:
+
+    export POSTGRES_PASSWORD=$(kubectl get secret --namespace postgres-helm postgres-helm-db-postgresql -o jsonpath="{.data.postgres-password}" | base64 -d)
+
+To connect to your database run the following command:
+
+    kubectl run postgres-helm-db-postgresql-client --rm --tty -i --restart='Never' --namespace postgres-helm --image docker.io/bitnami/postgresql:14.5.0-debian-11-r6 --env="PGPASSWORD=$POSTGRES_PASSWORD" \
+      --command -- psql --host postgres-helm-db-postgresql -U postgres -d postgres -p 5432
+
+    > NOTE: If you access the container using bash, make sure that you execute "/opt/bitnami/scripts/postgresql/entrypoint.sh /bin/bash" in order to avoid the error "psql: local user with ID 1001} does not exist"
+
+To connect to your database from outside the cluster execute the following commands:
+
+    kubectl port-forward --namespace postgres-helm svc/postgres-helm-db-postgresql 5432:5432 &
+    PGPASSWORD="$POSTGRES_PASSWORD" psql --host 127.0.0.1 -U postgres -d postgres -p 5432

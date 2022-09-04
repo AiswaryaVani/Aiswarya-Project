@@ -1,0 +1,12 @@
+Follow this procedure:
+Run this command to end all Docker containers:
+sudo docker kill $(docker ps -q)
+
+Run this command to stop the Docker:
+sudo systemctl stop docker
+
+Remove the Docker lock files:
+sudo rm -f /var/run/docker /var/run/docker.*
+
+Restart the Docker:
+sudo systemctl start docker
