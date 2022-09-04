@@ -1,0 +1,111 @@
+################First Try: Installing ArgoCD using helm Chart######################
+
+--Create Git repository
+gh repo create argotest --public --clone
+cd argotest
+
+--create argo-cd directory 
+mkdir -p charts/argo-cd
+
+--Create and apply chart and value Yamal files for argo installation
+
+--add helm repo argo-cd
+helm repo add argo-cd https://argoproj.github.io/argo-helm
+helm dep update charts/argo-cd/
+
+--to download chart.lock file
+echo "charts/" > charts/argo-cd/.gitignore
+
+--now push files to git repository 
+git add charts/argo-cd
+git commit -m 'add argo-cd chart'
+git push
+
+
+
+--Install Argo cd
+helm install argo-cd charts/argo-cd/
+
+--Port Forward
+kubectl port-forward svc/argo-cd-argocd-server 8080:443
+
+--To get password for Admin account of ArgoCD 
+kubectl get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+
+--Setting the root application 
+mkdir -p apps/templates
+touch apps/values.yaml
+
+--create apps/templates/root.yaml
+
+--To deploy our root application we need to push the files to our Git repository
+git add apps
+git ci -m 'add root app'
+git push
+
+helm template apps/ | kubectl apply -f -
+
+--We put the application manifest in apps/templates/argo-cd.yaml
+Then push the file to our Git repository:
+
+git add apps/templates/argo-cd.yaml
+git ci -m 'add argo-cd application'
+git push
+
+--Access local host of ArgoCD app to check the health and synchup status 
+
+
+################Second Try: Installing using github######################
+--Operator Lifecycle Manager
+kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/0.14.1/crds.yaml
+kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/0.14.1/olm.yaml
+
+
+--Argo CD Scripts
+##Create argocd namespace 
+kubectl create namespace argocd
+
+--Apply/Install YAML file of argo cd in argocd namespace 
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml --insecure-skip-tls-verify=true
+
+--get list of pods that got installed in argo cd namespace 
+kubectl get pods -n argocd ##check pods and its running status
+
+--to describe error details on specific pod 
+kubectl describe pod argocd-server-76cf7d4c7b-gphqz -n argocd
+
+###--to acces argo cd UI 
+--to get the services 
+kubectl get svc -n argocd
+
+--to port forward for opening the argocd UI 
+kubectl port-forward -n argocd svc/argocd-server 8080:443
+
+##get the url and run it in browser
+
+##Login to argocd UT 
+user_id = admin
+#to get password
+kubectl get secret argocd-initial-admin-secret -n argocd -o yaml
+#decode the password 
+echo ##password | base64 --decode
+
+pass that password (ignore last % sign) to argocd 
+
+##Configuring ArgoCD (application.yaml) 
+--Create config file for Argocd to connect it to the gitrepo that is source and destination (Destination could be internal kubernetic cluster)  
+--automated attribue (selfheal: true) 
+default three argocd will check for changes in the git repo for pooling and apply changes in cluster
+
+Once created application.yaml created in git repo,
+we need to apply so that argocd will be notified 
+kubectl apply -f application.yaml 
+
+--Go to argocd UI to check it 
+now we can see the application component created in ArgoCD  
+
+
+################Other Scripts############
+--To delete namespace 
+kubectl delete namespaces argocd
