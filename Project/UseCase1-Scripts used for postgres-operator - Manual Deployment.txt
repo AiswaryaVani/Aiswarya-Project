@@ -1,0 +1,15 @@
+kubectl create namespace postgres-manual
+
+kubectl apply -f postgres-configmap.yaml -n postgres-manual
+kubectl apply -f postgres-storage.yaml -n postgres-manual
+kubectl get pvc -n postgres-manual #######to check pvc and pv is mapped 
+kubectl apply -f postgres-deployment.yaml -n postgres-manual
+kubectl apply -f postgres-service.yaml -n postgres-manual
+
+kubectl get all ######## to see all the services created 
+
+--To connect to service 
+kubectl get pods -n postgres-manual
+kubectl exec -it [pod-name] --  psql -h localhost -U admin --password -p [port] postgresdb
+kubectl exec -it -n postgres-manual postgres-5d46b88759-mk6w9 -- psql -h localhost -U admin --password -p 5432 postgresdb
+password: test123
